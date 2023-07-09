@@ -1,0 +1,8 @@
+kaggle~=1.5.13 # опционально, для работы с kaggle через API
+matplotlib~=3.6.3
+numpy~=1.23.5
+pandas~=1.5.3
+pandas-profiling~=3.6.6
+scikit-learn~=1.2.2
+seaborn~=0.12.2
+tensorflow~=2.12.0

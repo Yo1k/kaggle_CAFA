@@ -1,0 +1,12 @@
+# директории
+__pycache__
+.vscode
+tmp/*
+venv/*
+.venv/*
+.ipynb_checkpoints
+
+
+# файлы
+*.csv
+*.tsv
