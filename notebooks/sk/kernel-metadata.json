@@ -1,0 +1,21 @@
+{
+  "id": "spookyyolk/cafa-5-protein-function-prediction",
+  "id_no": 40853741,
+  "title": "cafa-5-protein-function-prediction",
+  "code_file": "kaggle_submission.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [],
+  "dataset_sources": [
+    "sergeifironov/t5embeds"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [
+    "cafa-5-protein-function-prediction"
+  ],
+  "model_sources": []
+}
