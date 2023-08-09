@@ -2,20 +2,19 @@ import json
 from pathlib import Path
 
 
-DIR_TO_SAVE_LOGS = Path('путь до папки сохранения логов')
-log_file = DIR_TO_SAVE_LOGS / 'имя файла с логами.json'
-
-
-limit_of_memory = 1073741824  # 1 Гб
-
-
-def log_to_json(log_file: Path, params: dict) -> None:
+def log_to_json(
+            log_file: Path,
+            params: dict,
+            limit_of_memory=1_073_741_824
+        ) -> None:
     '''
     Дописываем результаты обучения и параметры модели (params) в уже
     существующий файл JSON, если он не существует, то создаем новый.
+
+    Ограничение на размер файла задано 1 Гб, тк файл для добавления полностью
+    загружается в память.
     '''
     if log_file.exists():
-        print(log_file.stat().st_size)
         if log_file.stat().st_size > limit_of_memory:
             print('Ваш файл слишком большой, пора начать новый')
         with open(log_file, 'r') as f:
