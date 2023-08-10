@@ -3,10 +3,10 @@ from pathlib import Path
 
 
 def log_to_json(
-            log_file: Path,
-            params: dict,
-            limit_of_memory=1_073_741_824
-        ) -> None:
+    log_file: Path,
+    params: dict,
+    limit_of_memory=1_073_741_824
+) -> None:
     '''
     Дописываем результаты обучения и параметры модели (params) в уже
     существующий файл JSON, если он не существует, то создаем новый.
