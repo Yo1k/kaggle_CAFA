@@ -5,12 +5,20 @@ from __future__ import annotations
 
 import gc
 from collections import defaultdict
-from typing import Callable, Protocol
+from typing import Any, Callable, Protocol, TypedDict
 
 import numpy as np
 import sklearn.metrics as skmetrics
 import tensorflow as tf
 from sklearn.model_selection import RepeatedKFold
+
+
+class CallbackParams(TypedDict):
+    '''
+    Класс для аннтоации типа.
+    '''
+    callback: type[tf.keras.callbacks.Callback]
+    params: dict[str, Any]
 
 
 class Metric(Protocol):
@@ -19,8 +27,8 @@ class Metric(Protocol):
     '''
     def __call__(
         self,
-        y_test: np.ndarray,
-        yhat: np.ndarray,
+        y_true: np.ndarray,
+        y_pred: np.ndarray,
     ) -> np.ndarray | float:
         ...
 
@@ -35,6 +43,61 @@ class ModelCreateCompile(Protocol):
         n_outputs: int
     ) -> tf.keras.Model:
         ...
+
+
+class ModelEvalParams(TypedDict):
+    '''
+    Класс для аннтоации типа.
+    '''
+    data_info: dict[str, Any]
+    model_params: dict[str, Any]
+    scores: dict[str, Any]
+
+
+def create_callbacks(
+    params: list[CallbackParams]
+) -> list[tf.keras.callbacks.Callback]:
+    '''
+    Возвращает список `Callback` объектов,
+    созданных из словаря `CallbackParams`.
+    '''
+    callbacks = list()
+    for item in params:
+        callbacks.append(
+            item['callback'](**item['params'])
+        )
+
+    return callbacks
+
+
+def create_callbacks_info(
+    params: list[CallbackParams]
+) -> list[dict[str, Any]]:
+    '''
+    Возвращает список словарей, содержащих названия callback классов
+    и соответсвующие аргументы для их конструкторов.
+    '''
+    callbacks_info = list()
+    for item in params:
+        callbacks_info.append({
+            'callback_name': item['callback'].__name__,
+            'params': {**item['params']}
+        })
+
+    return callbacks_info
+
+
+def get_scores_stats(results: dict[str, list]) -> dict[str, float]:
+    '''
+    Возвращает словарь со средним значением и стандартным отклонением очков
+    для всех метрик.
+    '''
+    stats = dict()
+    for metric, score in results.items():
+        stats[f'mean_{metric}'] = np.mean(score).round(2)
+        stats[f'std_{metric}'] = np.std(score).round(2)
+
+    return stats
 
 
 def evaluate_model(
@@ -95,19 +158,21 @@ def evaluate_model(
 
         proxy_model.make_model(features.shape[1], lbls.shape[1])
         proxy_model.fit(x_train, y_train)
-        yhat = proxy_model.predict(x_test)
+        y_pred = proxy_model.predict(x_test)
 
         for metric in metrics:
-            results[metric.__name__].append(metric(y_test, yhat))
+            results[metric.__name__].append(  # type: ignore
+                metric(y_test, y_pred)
+            )
         # Очистка объектов.
         proxy_model.clear()
     return results
 
 
-def f1_score(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
+def f1_score(y_true: np.ndarray, y_pred: np.ndarray) -> float | np.ndarray:
     '''
-    Возвращает результат f1_score для случая multilabel classification
-    с двумя классами: 0, 1.
+    Возвращает результат f1_score для каждой метки.
+    Предполагается случай multilabel classification с двумя классами: 0, 1.
 
     В случае, когда `y_pred` представлены вероятностями
     вместо значениями класса, им присваивается класс
@@ -115,11 +180,33 @@ def f1_score(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
     - `y_pred` >= 0.5 -> 1
     - `y_pred` < 0.5 -> 0
     '''
-    y_pred = y_pred.round()
+    # Классификация на 2 класса с прогом 0.5.
+    y_pred = np.where(y_pred >= 0.5, 1, 0)
     y_pred_set = set(np.unique(y_pred))
     if y_pred_set > {0, 1}:
         ValueError(f'{y_pred_set} возможные значения классов: 0, 1')
-    return skmetrics.f1_score(y_true, y_pred, average=None)
+    return skmetrics.f1_score(y_true, y_pred, average=None)  # type: ignore
+
+
+def f1_score_micro(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    '''
+    Возвращает результат f1_score полученный глобальным подсчетом
+    общего количества истинных срабатываний,
+    ложноотрицательных и ложноположительных результатов.
+    Предполагается случай multilabel classification с двумя классами: 0, 1.
+
+    В случае, когда `y_pred` представлены вероятностями
+    вместо значениями класса, им присваивается класс
+    как в случае бинарной классификации с порогом 0.5:
+    - `y_pred` >= 0.5 -> 1
+    - `y_pred` < 0.5 -> 0
+    '''
+    # Классификация на 2 класса с прогом 0.5.
+    y_pred = np.where(y_pred >= 0.5, 1, 0)
+    y_pred_set = set(np.unique(y_pred))
+    if y_pred_set > {0, 1}:
+        ValueError(f'{y_pred_set} возможные значения классов: 0, 1')
+    return skmetrics.f1_score(y_true, y_pred, average='micro')  # type: ignore
 
 
 def get_basseline_model(n_inputs: int, n_outputs: int) -> tf.keras.Model:
@@ -142,16 +229,38 @@ def get_basseline_model(n_inputs: int, n_outputs: int) -> tf.keras.Model:
 
 
 def metric_closure(
-        metric_func: Callable[[np.ndarray, np.ndarray], np.ndarray],
-        *args,
-        **kwargs
+        metric_func: Callable[
+            [np.ndarray, np.ndarray, tuple[Any], dict[str, Any]],
+            np.ndarray | float],
+        metric_name: str | None = None,
+        *args: Any,
+        **kwargs: Any,
 ) -> Metric:
     '''
     Вспомогательная функция для формирования метрик.
+
+    Parameters:
+    ----------
+    metric_func: Callable[
+        [np.ndarray, np.ndarray, tuple[Any], dict[str, Any]],
+        np.ndarray | float
+    ]
+        Функция или класс с методом `__call__` используемая
+        для рассчета метрики.
+
+    metric_name: str | None
+        Параметр для задания названия метрики, по умолчанию используется
+        название функции `metric_func`.
+
+    args: Any, kwargs: Any
+        Параметры, которые передаются в качестве аргументов в `metric_func`.
     '''
-    def closure(y_test: np.ndarray, yhat: np.ndarray) -> np.ndarray | float:
-        return metric_func(y_test, yhat, *args, **kwargs)
-    closure.__name__ = metric_func.__name__
+    def closure(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray | float:
+        return metric_func(y_true, y_pred, *args, **kwargs)
+    if metric_name:
+        closure.__name__ = metric_name
+    else:
+        closure.__name__ = metric_func.__name__
     return closure
 
 
@@ -267,7 +376,7 @@ class ProxyFitModel:
         shuffle: bool = True,
         steps_per_epoch: float | None = None,
         validation_split: float = 0.0,
-        verbose: str = 'auto',
+        verbose: str | int = 'auto',
     ):
         self.batch_size = batch_size
         self.callbacks = callbacks
@@ -301,7 +410,7 @@ class ProxyFitModel:
             shuffle=self.shuffle,
             steps_per_epoch=self.steps_per_epoch,
             validation_split=self.validation_split,
-            verbose=self.verbose,
+            verbose=self.verbose,  # type: ignore
         )
 
     def clear(self) -> None:
