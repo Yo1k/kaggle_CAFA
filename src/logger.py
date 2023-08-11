@@ -1,6 +1,22 @@
 import json
 from pathlib import Path
 import pandas as pd
+from statistics import mean
+
+import tensorflow as tf
+
+
+def mean_callback_epoch(
+    history_all_epochs: tf.keras.callbacks.History
+) -> float:
+    '''
+    Расчитываем среднюю `callback` эпоху для всех `KFold`.
+    '''
+    callback_epochs: list[int] = []
+    for history in history_all_epochs:
+        callback_epochs.append(len(history.history['loss']))
+    mean_callback_epoch: float = mean(callback_epochs)
+    return mean_callback_epoch
 
 
 def log_to_json(
@@ -46,7 +62,8 @@ def log_to_table(log_file: Path) -> pd.DataFrame:
 
     df = pd.DataFrame(columns=[
         'model_name', 'kernel_regularizer', 'layers_strct', 'callback',
-        'dropout', 'mean_f1_score_micro', 'std_f1_score_micro']
+        'dropout', 'mean_callback_epoch', 'mean_f1_score_micro',
+        'std_f1_score_micro']
     )
 
     for model_name in models_dict.keys():
@@ -61,6 +78,9 @@ def log_to_table(log_file: Path) -> pd.DataFrame:
         else:
             callback = None
         dropout = models_dict[model_name]['model_params']['dropout']
+        mean_callback_epoch = models_dict[model_name]['model_params'].get(
+            'mean_callback_epoch', None
+        )
         mean_f1_score_micro = models_dict[model_name]['scores'][
             'mean_f1_score_micro'
         ]
@@ -69,7 +89,7 @@ def log_to_table(log_file: Path) -> pd.DataFrame:
         ]
         df.loc[len(df)] = [
             model_name, kernel_regularizer, layers_strct, callback, dropout,
-            mean_f1_score_micro, std_f1_score_micro
+            mean_callback_epoch, mean_f1_score_micro, std_f1_score_micro
         ]
 
     return df

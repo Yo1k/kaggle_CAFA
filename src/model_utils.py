@@ -152,12 +152,14 @@ def evaluate_model(
         n_repeats=n_repeats,
         random_state=random_state,
     )
+    history_all_epochs = []
     for train_idx, test_idx in cv.split(features):
         x_train, x_test = features[train_idx], features[test_idx]
         y_train, y_test = lbls[train_idx], lbls[test_idx]
 
         proxy_model.make_model(features.shape[1], lbls.shape[1])
-        proxy_model.fit(x_train, y_train)
+        history = proxy_model.fit(x_train, y_train)
+        history_all_epochs.append(history)
         y_pred = proxy_model.predict(x_test)
 
         for metric in metrics:
@@ -166,7 +168,8 @@ def evaluate_model(
             )
         # Очистка объектов.
         proxy_model.clear()
-    return results
+
+    return results, history_all_epochs
 
 
 def f1_score(y_true: np.ndarray, y_pred: np.ndarray) -> float | np.ndarray:
