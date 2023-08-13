@@ -10,7 +10,9 @@ from typing import Any, Callable, Protocol, TypedDict
 import numpy as np
 import sklearn.metrics as skmetrics
 import tensorflow as tf
+import tensorflow.keras.backend as K
 from sklearn.model_selection import RepeatedKFold
+from sklearn.utils.class_weight import compute_class_weight
 
 
 class CallbackParams(TypedDict):
@@ -52,6 +54,29 @@ class ModelEvalParams(TypedDict):
     data_info: dict[str, Any]
     model_params: dict[str, Any]
     scores: dict[str, Any]
+
+
+def calculating_class_weights(y_true: np.ndarray) -> np.ndarray:
+    '''
+    Рассчет весов для случая 2-х классов: 0, 1
+    в multi-label классификации.
+
+    Возвращает результат следующей структуры:
+    2D-массив c `.shape[0]` равной количеству целей multi-label классификации
+    и `.shape[1]` равной 2:
+    массив из двух элементов, где с индексом 0 находится вес для класса 0,
+    с индексом 1 - вес для класса 1.
+    '''
+    number_dim = np.shape(y_true)[1]
+    weights = np.empty([number_dim, 2])
+    for i in range(number_dim):
+        weights[i] = compute_class_weight(
+            'balanced',
+            classes=[0, 1],
+            y=y_true[:, i],
+        )
+
+    return weights
 
 
 def create_callbacks(
@@ -298,13 +323,18 @@ class ModelCompileFabric:
         kernel_regularizer: str | None = None,
         dropout: float = 0,
         layers_strct: list[int] | None = None,
-        learning_rate: float = 0.001
+        learning_rate: float = 0.001,
+        loss: tf.keras.losses.Loss | None = None
     ):
         self.activation = activation
         self.dropout = dropout
         self.kernel_regularizer = kernel_regularizer
         self.layers_strct = [512]*3 if layers_strct is None else layers_strct
         self.learning_rate = learning_rate
+        self.loss = (
+            tf.keras.losses.BinaryCrossentropy() if loss is None
+            else loss
+        )
 
     def __create_compile(
         self,
@@ -333,7 +363,7 @@ class ModelCompileFabric:
 
         # --- Компиляция модели.
         model.compile(
-            loss=tf.keras.losses.BinaryCrossentropy(),
+            loss=self.loss,
             metrics=[
                 tf.keras.metrics.BinaryAccuracy(name='binary_accuracy'),
             ],
@@ -439,3 +469,57 @@ class ProxyFitModel:
     @property
     def original_model(self) -> tf.keras.Model | None:
         return self.__model
+
+
+class WeightedBinaryCrossentropy(tf.keras.losses.Loss):
+    '''
+    Рассчитывает взвешенную `tf.keras.losses.BinaryCrossentropy`.
+    Подробнее о параметрах конструктора см.
+    в документации `tf.keras.losses.BinaryCrossentropy`.
+
+    `class_weights`: None | np.ndarray
+    - В случае `None` возвращается результаты вычисления без взвешивания.
+    - В случае `np.ndarray`, структура должна быть следующая:
+    2D-массив c `.shape[0]` равной количеству целей multi-label классификации
+    и `.shape[1]` равной 2:
+    массив из двух элементов, где с индексом 0 находится вес для класса 0,
+    с индексом 1 - вес для класса 1.
+    '''
+    def __init__(
+        self,
+        class_weights: None | np.ndarray = None,
+        from_logits: bool = False,
+        label_smoothing: float = 0.0,
+        name: str | None = 'weighted_binary_crossentropy',
+        axis=-1,
+    ):
+        # Случай когда loss функция сводится к binary_crossentropy.
+        if class_weights is None or np.all(class_weights == 1.0):
+            self.class_weights = None
+            name = 'binary_crossentropy'
+        else:
+            self.class_weights = tf.convert_to_tensor(
+                class_weights,
+                dtype=tf.float32
+            )
+        self.default_bce = tf.keras.losses.BinaryCrossentropy(
+            from_logits=from_logits,
+            label_smoothing=label_smoothing,
+            axis=axis,
+        )
+        super(WeightedBinaryCrossentropy, self).__init__(name=name)
+
+    def __call__(self, y_true, y_pred, sample_weight=None):
+        loss = self.default_bce(y_true, y_pred, sample_weight)
+        if self.class_weights is not None:
+            y_true = tf.cast(y_true, tf.float32)
+            loss = K.mean(
+                (
+                    (self.class_weights[:, 0]**(1-y_true))  # type: ignore
+                    * (self.class_weights[:, 1]**(y_true))  # type: ignore
+                    * self.default_bce(y_true, y_pred)
+                ),
+                axis=-1
+            )
+
+        return loss
