@@ -136,10 +136,13 @@ def evaluate_model(
     n_repeats: int = 1,
     n_splits: int = 5,
     random_state: int = 42,
-) -> defaultdict[str, list[float | np.ndarray]]:
+) -> tuple[
+    defaultdict[str, list[float | np.ndarray]],
+    list[tf.keras.callbacks.History]
+]:
     '''
-    Возвращает словарь с результатами вычисления метрик для каждого фолда
-    при нескольких циклах K-fold кросс-валидации.
+    Возвращает словарь с результатами вычисления метрик и список объектов
+    History для каждого фолда при нескольких циклах K-fold кросс-валидации.
 
     Parameters
     ----------
@@ -167,12 +170,15 @@ def evaluate_model(
 
     Returns:
     --------
-    defaultdict[str, list[np.ndarray]]
+    defaultdict[str, list[float | np.ndarray]]
         Возвращается словарь списков. Ключом является название функции,
         используемой в качестве метрики. В соответсвующем списке находятся
         результаты вычисления метрик на всех циклах на каждом фолде. Т.е. если
         было 3 цикла и 5 разбиений при кросс-фалидации, то в списке будет
         3*5=15 результатов метрик.
+    list[tf.keras.callbacks.History]
+        Возвращаем массив из объектов History каждого цикла
+        кросс-валидации.
     '''
     results = defaultdict(list[float | np.ndarray])
     cv = RepeatedKFold(
@@ -180,15 +186,17 @@ def evaluate_model(
         n_repeats=n_repeats,
         random_state=random_state,
     )
+    histories = []
     for train_idx, test_idx in cv.split(features):
         x_train, x_test = features[train_idx], features[test_idx]
         y_train, y_test = lbls[train_idx], lbls[test_idx]
 
         proxy_model.make_model(features.shape[1], lbls.shape[1])
         if proxy_model.validation_split is None:
-            proxy_model.fit(x_train, y_train, (x_test, y_test))
+            history = proxy_model.fit(x_train, y_train, (x_test, y_test))
         else:
-            proxy_model.fit(x_train, y_train)
+            history = proxy_model.fit(x_train, y_train)
+        histories.append(history)
         y_pred = proxy_model.predict(x_test)
 
         for metric in metrics:
@@ -197,7 +205,8 @@ def evaluate_model(
             )
         # Очистка объектов.
         proxy_model.clear()
-    return results
+
+    return results, histories
 
 
 def f1_score(y_true: np.ndarray, y_pred: np.ndarray) -> float | np.ndarray:

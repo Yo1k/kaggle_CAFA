@@ -199,6 +199,757 @@
             "std_f1_score_micro": 0.02
         }
     },
+    "dt2023_10Aug15_30_51": {
+        "data_info": {
+            "file_name_features": "train_features.csv",
+            "file_name_labels": "train_lbls_top1500_goterms.csv"
+        },
+        "model_params": {
+            "activation": "relu",
+            "batch_size": 5000,
+            "callbacks": null,
+            "dropout": 0,
+            "epochs": 150,
+            "kernel_regularizer": "l1",
+            "layers_strct": [
+                512,
+                512,
+                512
+            ],
+            "learning_rate": 0.001,
+            "n_repeats": 1,
+            "n_splits": 5,
+            "random_state": 2536,
+            "shuffle": true,
+            "validation_split": 0.1
+        },
+        "scores": {
+            "mean_f1_score_micro": 0.17,
+            "std_f1_score_micro": 0.0
+        }
+    },
+    "dt2023_10Aug16_01_52": {
+        "data_info": {
+            "file_name_features": "train_features.csv",
+            "file_name_labels": "train_lbls_top1500_goterms.csv"
+        },
+        "model_params": {
+            "activation": "relu",
+            "batch_size": 5000,
+            "callbacks": [
+                {
+                    "callback_name": "EarlyStopping",
+                    "params": {
+                        "monitor": "val_loss",
+                        "mode": "min",
+                        "min_delta": 0.01,
+                        "patience": 10,
+                        "restore_best_weights": true
+                    }
+                }
+            ],
+            "dropout": 0.1,
+            "epochs": 150,
+            "kernel_regularizer": "l1",
+            "layers_strct": [
+                512,
+                512,
+                512
+            ],
+            "learning_rate": 0.001,
+            "n_repeats": 1,
+            "n_splits": 5,
+            "random_state": 5301,
+            "shuffle": true,
+            "validation_split": 0.1
+        },
+        "scores": {
+            "mean_f1_score_micro": 0.16,
+            "std_f1_score_micro": 0.01
+        }
+    },
+    "dt2023_10Aug16_56_37": {
+        "data_info": {
+            "file_name_features": "train_features.csv",
+            "file_name_labels": "train_lbls_top1500_goterms.csv"
+        },
+        "model_params": {
+            "activation": "relu",
+            "batch_size": 5000,
+            "callbacks": [
+                {
+                    "callback_name": "EarlyStopping",
+                    "params": {
+                        "monitor": "val_loss",
+                        "mode": "min",
+                        "min_delta": 0.01,
+                        "patience": 10,
+                        "restore_best_weights": true
+                    }
+                }
+            ],
+            "dropout": 0,
+            "epochs": 150,
+            "kernel_regularizer": "l1",
+            "layers_strct": [
+                512,
+                512,
+                512
+            ],
+            "learning_rate": 0.001,
+            "n_repeats": 1,
+            "n_splits": 5,
+            "random_state": 6874,
+            "shuffle": true,
+            "validation_split": 0.1
+        },
+        "scores": {
+            "mean_f1_score_micro": 0.16,
+            "std_f1_score_micro": 0.01
+        }
+    },
+    "dt2023_10Aug17_30_38": {
+        "data_info": {
+            "file_name_features": "train_features.csv",
+            "file_name_labels": "train_lbls_top1500_goterms.csv"
+        },
+        "model_params": {
+            "activation": "relu",
+            "batch_size": 5000,
+            "callbacks": [
+                {
+                    "callback_name": "EarlyStopping",
+                    "params": {
+                        "monitor": "val_loss",
+                        "mode": "min",
+                        "min_delta": 0.01,
+                        "patience": 10,
+                        "restore_best_weights": true
+                    }
+                }
+            ],
+            "dropout": 0,
+            "epochs": 150,
+            "kernel_regularizer": null,
+            "layers_strct": [
+                512,
+                512,
+                512
+            ],
+            "learning_rate": 0.001,
+            "n_repeats": 1,
+            "n_splits": 5,
+            "random_state": 2558,
+            "shuffle": true,
+            "validation_split": 0.1
+        },
+        "scores": {
+            "mean_f1_score_micro": 0.38,
+            "std_f1_score_micro": 0.02
+        }
+    },
+    "dt2023_10Aug18_05_45": {
+        "data_info": {
+            "file_name_features": "train_features.csv",
+            "file_name_labels": "train_lbls_top1500_goterms.csv"
+        },
+        "model_params": {
+            "activation": "relu",
+            "batch_size": 5000,
+            "callbacks": [
+                {
+                    "callback_name": "EarlyStopping",
+                    "params": {
+                        "monitor": "val_loss",
+                        "mode": "min",
+                        "min_delta": 0.01,
+                        "patience": 10,
+                        "restore_best_weights": true
+                    }
+                }
+            ],
+            "dropout": 0,
+            "epochs": 150,
+            "kernel_regularizer": "l2",
+            "layers_strct": [
+                512,
+                512,
+                512
+            ],
+            "learning_rate": 0.001,
+            "n_repeats": 1,
+            "n_splits": 5,
+            "random_state": 1636,
+            "shuffle": true,
+            "validation_split": 0.1
+        },
+        "scores": {
+            "mean_f1_score_micro": 0.15,
+            "std_f1_score_micro": 0.01
+        }
+    },
+    "dt2023_10Aug19_06_33": {
+        "data_info": {
+            "file_name_features": "train_features.csv",
+            "file_name_labels": "train_lbls_top1500_goterms.csv"
+        },
+        "model_params": {
+            "activation": "relu",
+            "batch_size": 5000,
+            "callbacks": [
+                {
+                    "callback_name": "EarlyStopping",
+                    "params": {
+                        "monitor": "val_loss",
+                        "mode": "min",
+                        "min_delta": 0.01,
+                        "patience": 10,
+                        "restore_best_weights": true
+                    }
+                }
+            ],
+            "dropout": 0,
+            "epochs": 150,
+            "kernel_regularizer": "l1_l2",
+            "layers_strct": [
+                512,
+                512,
+                512
+            ],
+            "learning_rate": 0.001,
+            "n_repeats": 1,
+            "n_splits": 5,
+            "random_state": 2185,
+            "shuffle": true,
+            "validation_split": 0.1
+        },
+        "scores": {
+            "mean_f1_score_micro": 0.17,
+            "std_f1_score_micro": 0.0
+        }
+    },
+    "dt2023_10Aug19_52_56": {
+        "data_info": {
+            "file_name_features": "train_features.csv",
+            "file_name_labels": "train_lbls_top1500_goterms.csv"
+        },
+        "model_params": {
+            "activation": "relu",
+            "batch_size": 5000,
+            "callbacks": [
+                {
+                    "callback_name": "EarlyStopping",
+                    "params": {
+                        "monitor": "val_loss",
+                        "mode": "min",
+                        "min_delta": 0.01,
+                        "patience": 10,
+                        "restore_best_weights": true
+                    }
+                }
+            ],
+            "dropout": 0.1,
+            "epochs": 150,
+            "kernel_regularizer": null,
+            "layers_strct": [
+                512,
+                512,
+                512
+            ],
+            "learning_rate": 0.001,
+            "n_repeats": 1,
+            "n_splits": 5,
+            "random_state": 1806,
+            "shuffle": true,
+            "validation_split": 0.1
+        },
+        "scores": {
+            "mean_f1_score_micro": 0.39,
+            "std_f1_score_micro": 0.01
+        }
+    },
+    "dt2023_10Aug20_36_08": {
+        "data_info": {
+            "file_name_features": "train_features.csv",
+            "file_name_labels": "train_lbls_top1500_goterms.csv"
+        },
+        "model_params": {
+            "activation": "relu",
+            "batch_size": 5000,
+            "callbacks": [
+                {
+                    "callback_name": "EarlyStopping",
+                    "params": {
+                        "monitor": "val_loss",
+                        "mode": "min",
+                        "min_delta": 0.01,
+                        "patience": 10,
+                        "restore_best_weights": true
+                    }
+                }
+            ],
+            "dropout": 0.3,
+            "epochs": 150,
+            "kernel_regularizer": null,
+            "layers_strct": [
+                512,
+                512,
+                512
+            ],
+            "learning_rate": 0.001,
+            "n_repeats": 1,
+            "n_splits": 5,
+            "random_state": 3179,
+            "shuffle": true,
+            "validation_split": 0.1
+        },
+        "scores": {
+            "mean_f1_score_micro": 0.38,
+            "std_f1_score_micro": 0.0
+        }
+    },
+    "dt2023_10Aug21_26_14": {
+        "data_info": {
+            "file_name_features": "train_features.csv",
+            "file_name_labels": "train_lbls_top1500_goterms.csv"
+        },
+        "model_params": {
+            "activation": "relu",
+            "batch_size": 5000,
+            "callbacks": [
+                {
+                    "callback_name": "EarlyStopping",
+                    "params": {
+                        "monitor": "val_loss",
+                        "mode": "min",
+                        "min_delta": 0.01,
+                        "patience": 10,
+                        "restore_best_weights": true
+                    }
+                }
+            ],
+            "dropout": 0.5,
+            "epochs": 150,
+            "kernel_regularizer": null,
+            "layers_strct": [
+                512,
+                512,
+                512
+            ],
+            "learning_rate": 0.001,
+            "n_repeats": 1,
+            "n_splits": 5,
+            "random_state": 9713,
+            "shuffle": true,
+            "validation_split": 0.1
+        },
+        "scores": {
+            "mean_f1_score_micro": 0.38,
+            "std_f1_score_micro": 0.0
+        }
+    },
+    "dt2023_10Aug22_29_10": {
+        "data_info": {
+            "file_name_features": "train_features.csv",
+            "file_name_labels": "train_lbls_top1500_goterms.csv"
+        },
+        "model_params": {
+            "activation": "relu",
+            "batch_size": 5000,
+            "callbacks": [
+                {
+                    "callback_name": "EarlyStopping",
+                    "params": {
+                        "monitor": "val_loss",
+                        "mode": "min",
+                        "min_delta": 0.01,
+                        "patience": 10,
+                        "restore_best_weights": true
+                    }
+                }
+            ],
+            "dropout": 0.1,
+            "epochs": 150,
+            "kernel_regularizer": null,
+            "layers_strct": [
+                1024,
+                512,
+                1024
+            ],
+            "learning_rate": 0.001,
+            "n_repeats": 1,
+            "n_splits": 5,
+            "random_state": 3214,
+            "shuffle": true,
+            "validation_split": 0.1
+        },
+        "scores": {
+            "mean_f1_score_micro": 0.41,
+            "std_f1_score_micro": 0.01
+        }
+    },
+    "dt2023_10Aug23_27_43": {
+        "data_info": {
+            "file_name_features": "train_features.csv",
+            "file_name_labels": "train_lbls_top1500_goterms.csv"
+        },
+        "model_params": {
+            "activation": "relu",
+            "batch_size": 5000,
+            "callbacks": [
+                {
+                    "callback_name": "EarlyStopping",
+                    "params": {
+                        "monitor": "val_loss",
+                        "mode": "min",
+                        "min_delta": 0.01,
+                        "patience": 10,
+                        "restore_best_weights": true
+                    }
+                }
+            ],
+            "dropout": 0.3,
+            "epochs": 150,
+            "kernel_regularizer": null,
+            "layers_strct": [
+                1024,
+                512,
+                1024
+            ],
+            "learning_rate": 0.001,
+            "n_repeats": 1,
+            "n_splits": 5,
+            "random_state": 771,
+            "shuffle": true,
+            "validation_split": 0.1
+        },
+        "scores": {
+            "mean_f1_score_micro": 0.4,
+            "std_f1_score_micro": 0.0
+        }
+    },
+    "dt2023_11Aug00_25_08": {
+        "data_info": {
+            "file_name_features": "train_features.csv",
+            "file_name_labels": "train_lbls_top1500_goterms.csv"
+        },
+        "model_params": {
+            "activation": "relu",
+            "batch_size": 5000,
+            "callbacks": [
+                {
+                    "callback_name": "EarlyStopping",
+                    "params": {
+                        "monitor": "val_loss",
+                        "mode": "min",
+                        "min_delta": 0.01,
+                        "patience": 10,
+                        "restore_best_weights": true
+                    }
+                }
+            ],
+            "dropout": 0.5,
+            "epochs": 150,
+            "kernel_regularizer": null,
+            "layers_strct": [
+                1024,
+                512,
+                1024
+            ],
+            "learning_rate": 0.001,
+            "n_repeats": 1,
+            "n_splits": 5,
+            "random_state": 9995,
+            "shuffle": true,
+            "validation_split": 0.1
+        },
+        "scores": {
+            "mean_f1_score_micro": 0.4,
+            "std_f1_score_micro": 0.0
+        }
+    },
+    "dt2023_11Aug00_59_23": {
+        "data_info": {
+            "file_name_features": "train_features.csv",
+            "file_name_labels": "train_lbls_top1500_goterms.csv"
+        },
+        "model_params": {
+            "activation": "relu",
+            "batch_size": 5000,
+            "callbacks": [
+                {
+                    "callback_name": "EarlyStopping",
+                    "params": {
+                        "monitor": "val_loss",
+                        "mode": "min",
+                        "min_delta": 0.01,
+                        "patience": 10,
+                        "restore_best_weights": true
+                    }
+                }
+            ],
+            "dropout": 0.1,
+            "epochs": 150,
+            "kernel_regularizer": null,
+            "layers_strct": [
+                512,
+                256,
+                512
+            ],
+            "learning_rate": 0.001,
+            "n_repeats": 1,
+            "n_splits": 5,
+            "random_state": 3928,
+            "shuffle": true,
+            "validation_split": 0.1
+        },
+        "scores": {
+            "mean_f1_score_micro": 0.38,
+            "std_f1_score_micro": 0.0
+        }
+    },
+    "dt2023_11Aug01_41_25": {
+        "data_info": {
+            "file_name_features": "train_features.csv",
+            "file_name_labels": "train_lbls_top1500_goterms.csv"
+        },
+        "model_params": {
+            "activation": "relu",
+            "batch_size": 5000,
+            "callbacks": [
+                {
+                    "callback_name": "EarlyStopping",
+                    "params": {
+                        "monitor": "val_loss",
+                        "mode": "min",
+                        "min_delta": 0.01,
+                        "patience": 10,
+                        "restore_best_weights": true
+                    }
+                }
+            ],
+            "dropout": 0.3,
+            "epochs": 150,
+            "kernel_regularizer": null,
+            "layers_strct": [
+                512,
+                256,
+                512
+            ],
+            "learning_rate": 0.001,
+            "n_repeats": 1,
+            "n_splits": 5,
+            "random_state": 1705,
+            "shuffle": true,
+            "validation_split": 0.1
+        },
+        "scores": {
+            "mean_f1_score_micro": 0.38,
+            "std_f1_score_micro": 0.01
+        }
+    },
+    "dt2023_11Aug02_29_04": {
+        "data_info": {
+            "file_name_features": "train_features.csv",
+            "file_name_labels": "train_lbls_top1500_goterms.csv"
+        },
+        "model_params": {
+            "activation": "relu",
+            "batch_size": 5000,
+            "callbacks": [
+                {
+                    "callback_name": "EarlyStopping",
+                    "params": {
+                        "monitor": "val_loss",
+                        "mode": "min",
+                        "min_delta": 0.01,
+                        "patience": 10,
+                        "restore_best_weights": true
+                    }
+                }
+            ],
+            "dropout": 0.5,
+            "epochs": 150,
+            "kernel_regularizer": null,
+            "layers_strct": [
+                512,
+                256,
+                512
+            ],
+            "learning_rate": 0.001,
+            "n_repeats": 1,
+            "n_splits": 5,
+            "random_state": 4934,
+            "shuffle": true,
+            "validation_split": 0.1
+        },
+        "scores": {
+            "mean_f1_score_micro": 0.36,
+            "std_f1_score_micro": 0.0
+        }
+    },
+    "dt2023_11Aug16_26_00": {
+        "data_info": {
+            "file_name_features": "train_features.csv",
+            "file_name_labels": "train_lbls_top1500_goterms.csv"
+        },
+        "model_params": {
+            "activation": "relu",
+            "batch_size": 5000,
+            "callbacks": [
+                {
+                    "callback_name": "EarlyStopping",
+                    "params": {
+                        "monitor": "val_loss",
+                        "mode": "min",
+                        "min_delta": 0.005,
+                        "patience": 20,
+                        "restore_best_weights": true
+                    }
+                }
+            ],
+            "dropout": 0.1,
+            "epochs": 150,
+            "kernel_regularizer": null,
+            "layers_strct": [
+                1024,
+                512,
+                1024
+            ],
+            "learning_rate": 0.001,
+            "n_repeats": 1,
+            "n_splits": 5,
+            "random_state": 5597,
+            "shuffle": true,
+            "validation_split": 0.1
+        },
+        "scores": {
+            "mean_f1_score_micro": 0.41,
+            "std_f1_score_micro": 0.0
+        }
+    },
+    "dt2023_11Aug17_55_40": {
+        "data_info": {
+            "file_name_features": "train_features.csv",
+            "file_name_labels": "train_lbls_top1500_goterms.csv"
+        },
+        "model_params": {
+            "activation": "relu",
+            "batch_size": 5000,
+            "callbacks": [
+                {
+                    "callback_name": "EarlyStopping",
+                    "params": {
+                        "monitor": "val_loss",
+                        "mode": "min",
+                        "min_delta": 0.005,
+                        "patience": 20,
+                        "restore_best_weights": true
+                    }
+                }
+            ],
+            "dropout": 0.5,
+            "epochs": 150,
+            "kernel_regularizer": null,
+            "layers_strct": [
+                1024,
+                512,
+                1024
+            ],
+            "learning_rate": 0.001,
+            "n_repeats": 1,
+            "n_splits": 5,
+            "random_state": 3990,
+            "shuffle": true,
+            "validation_split": 0.1
+        },
+        "scores": {
+            "mean_f1_score_micro": 0.41,
+            "std_f1_score_micro": 0.01
+        }
+    },
+    "dt2023_11Aug20_02_52": {
+        "data_info": {
+            "file_name_features": "train_features.csv",
+            "file_name_labels": "train_lbls_top1500_goterms.csv"
+        },
+        "model_params": {
+            "activation": "relu",
+            "batch_size": 5000,
+            "callbacks": [
+                {
+                    "callback_name": "EarlyStopping",
+                    "params": {
+                        "monitor": "val_loss",
+                        "mode": "min",
+                        "min_delta": 0.01,
+                        "patience": 10,
+                        "restore_best_weights": true
+                    }
+                }
+            ],
+            "dropout": 0.1,
+            "epochs": 150,
+            "kernel_regularizer": null,
+            "layers_strct": [
+                512,
+                512,
+                512
+            ],
+            "learning_rate": 0.001,
+            "n_repeats": 1,
+            "n_splits": 5,
+            "random_state": 7788,
+            "shuffle": true,
+            "validation_split": 0.1,
+            "mean_epoch": 43.4
+        },
+        "scores": {
+            "mean_f1_score_micro": 0.39,
+            "std_f1_score_micro": 0.0
+        }
+    },
+    "dt2023_13Aug20_37_12": {
+        "data_info": {
+            "file_name_features": "train_features.csv",
+            "file_name_labels": "train_lbls_top1500_goterms.csv"
+        },
+        "model_params": {
+            "activation": "relu",
+            "batch_size": 5000,
+            "callbacks": [
+                {
+                    "callback_name": "EarlyStopping",
+                    "params": {
+                        "monitor": "val_loss",
+                        "mode": "min",
+                        "min_delta": 0.01,
+                        "patience": 10,
+                        "restore_best_weights": true
+                    }
+                }
+            ],
+            "dropout": 0.1,
+            "epochs": 150,
+            "kernel_regularizer": null,
+            "layers_strct": [
+                512,
+                1024,
+                512
+            ],
+            "learning_rate": 0.001,
+            "n_repeats": 1,
+            "n_splits": 5,
+            "random_state": 603,
+            "shuffle": true,
+            "validation_split": 0.1,
+            "mean_epoch": 43.2
+        },
+        "scores": {
+            "mean_f1_score_micro": 0.39,
+            "std_f1_score_micro": 0.0
+        }
+    },
     "dt2023_13Aug18_11_44": {
         "data_info": {
             "file_name_features": "train_features.csv",
