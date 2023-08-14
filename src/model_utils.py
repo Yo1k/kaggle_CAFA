@@ -10,7 +10,9 @@ from typing import Any, Callable, Protocol, TypedDict
 import numpy as np
 import sklearn.metrics as skmetrics
 import tensorflow as tf
+import tensorflow.keras.backend as K
 from sklearn.model_selection import RepeatedKFold
+from sklearn.utils.class_weight import compute_class_weight
 
 
 class CallbackParams(TypedDict):
@@ -54,6 +56,29 @@ class ModelEvalParams(TypedDict):
     scores: dict[str, Any]
 
 
+def calculating_class_weights(y_true: np.ndarray) -> np.ndarray:
+    '''
+    Рассчет весов для случая 2-х классов: 0, 1
+    в multi-label классификации.
+
+    Возвращает результат следующей структуры:
+    2D-массив c `.shape[0]` равной количеству целей multi-label классификации
+    и `.shape[1]` равной 2:
+    массив из двух элементов, где с индексом 0 находится вес для класса 0,
+    с индексом 1 - вес для класса 1.
+    '''
+    number_dim = np.shape(y_true)[1]
+    weights = np.empty([number_dim, 2])
+    for i in range(number_dim):
+        weights[i] = compute_class_weight(
+            'balanced',
+            classes=[0, 1],
+            y=y_true[:, i],
+        )
+
+    return weights
+
+
 def create_callbacks(
     params: list[CallbackParams]
 ) -> list[tf.keras.callbacks.Callback]:
@@ -87,15 +112,18 @@ def create_callbacks_info(
     return callbacks_info
 
 
-def get_scores_stats(results: dict[str, list]) -> dict[str, float]:
+def get_scores_stats(
+    results: dict[str, list],
+    ndigits: int = 2,
+) -> dict[str, float]:
     '''
     Возвращает словарь со средним значением и стандартным отклонением очков
     для всех метрик.
     '''
     stats = dict()
     for metric, score in results.items():
-        stats[f'mean_{metric}'] = np.mean(score).round(2)
-        stats[f'std_{metric}'] = np.std(score).round(2)
+        stats[f'mean_{metric}'] = np.mean(score).round(ndigits)
+        stats[f'std_{metric}'] = np.std(score).round(ndigits)
 
     return stats
 
@@ -109,7 +137,7 @@ def evaluate_model(
     n_splits: int = 5,
     random_state: int = 42,
 ) -> tuple[
-    defaultdict[str, list[np.ndarray]],
+    defaultdict[str, list[float | np.ndarray]],
     list[tf.keras.callbacks.History]
 ]:
     '''
@@ -142,7 +170,7 @@ def evaluate_model(
 
     Returns:
     --------
-    defaultdict[str, list[np.ndarray]]
+    defaultdict[str, list[float | np.ndarray]]
         Возвращается словарь списков. Ключом является название функции,
         используемой в качестве метрики. В соответсвующем списке находятся
         результаты вычисления метрик на всех циклах на каждом фолде. Т.е. если
@@ -152,7 +180,7 @@ def evaluate_model(
         Возвращаем массив из объектов History каждого цикла
         кросс-валидации.
     '''
-    results = defaultdict(list)
+    results = defaultdict(list[float | np.ndarray])
     cv = RepeatedKFold(
         n_splits=n_splits,
         n_repeats=n_repeats,
@@ -164,7 +192,10 @@ def evaluate_model(
         y_train, y_test = lbls[train_idx], lbls[test_idx]
 
         proxy_model.make_model(features.shape[1], lbls.shape[1])
-        history = proxy_model.fit(x_train, y_train)
+        if proxy_model.validation_split is None:
+            history = proxy_model.fit(x_train, y_train, (x_test, y_test))
+        else:
+            history = proxy_model.fit(x_train, y_train)
         histories.append(history)
         y_pred = proxy_model.predict(x_test)
 
@@ -307,13 +338,18 @@ class ModelCompileFabric:
         kernel_regularizer: str | None = None,
         dropout: float = 0,
         layers_strct: list[int] | None = None,
-        learning_rate: float = 0.001
+        learning_rate: float = 0.001,
+        loss: tf.keras.losses.Loss | None = None
     ):
         self.activation = activation
         self.dropout = dropout
         self.kernel_regularizer = kernel_regularizer
         self.layers_strct = [512]*3 if layers_strct is None else layers_strct
         self.learning_rate = learning_rate
+        self.loss = (
+            tf.keras.losses.BinaryCrossentropy() if loss is None
+            else loss
+        )
 
     def __create_compile(
         self,
@@ -342,7 +378,7 @@ class ModelCompileFabric:
 
         # --- Компиляция модели.
         model.compile(
-            loss=tf.keras.losses.BinaryCrossentropy(),
+            loss=self.loss,
             metrics=[
                 tf.keras.metrics.BinaryAccuracy(name='binary_accuracy'),
             ],
@@ -371,6 +407,13 @@ class ProxyFitModel:
         Функция или класс с методом `__call__` позволяющая создавать
         одинаковые скомпилированные DNN.
 
+    validation_split: float | None
+        Значения параметров отличаются от значений
+        исходного метода `fit` модели `tf.keras.Model`:
+        Если `None`, то метод `fit` требует аргумента `validation_data`,
+        если `float`, то будет использоваться разбиение тренировочных данных
+        с пропорцией `validation_split`.
+
     Остальные параметры в конструкторе повторяют часть параметров метода `fit`
     модели `tf.keras.Model`.
     '''
@@ -384,7 +427,7 @@ class ProxyFitModel:
         epochs: int = 10,
         shuffle: bool = True,
         steps_per_epoch: float | None = None,
-        validation_split: float = 0.0,
+        validation_split: float | None = 0.0,
         verbose: str | int = 'auto',
     ):
         self.batch_size = batch_size
@@ -401,7 +444,8 @@ class ProxyFitModel:
     def fit(
         self,
         x: np.ndarray,
-        y: np.ndarray
+        y: np.ndarray,
+        validation_data: tuple[np.ndarray, np.ndarray] | None = None,
     ) -> tf.keras.callbacks.History:
         '''
         Обучение модели.
@@ -409,6 +453,15 @@ class ProxyFitModel:
         assert self.__model is not None, (
             'Необходимо создать модель, вызовите метод `make_model`'
         )
+        if self.validation_split is not None and validation_data is not None:
+            raise ValueError(
+                'Недопустимо одновременно применение разбиения данных '
+                'через `validation_split` на тренировочные и валидационные '
+                'данные при наличии `validation_data`'
+                'Необходимо установить `validation_split=None` '
+                'или `validation_data=None`'
+            )
+
         return self.__model.fit(
             x=x,
             y=y,
@@ -418,7 +471,8 @@ class ProxyFitModel:
             epochs=self.epochs,
             shuffle=self.shuffle,
             steps_per_epoch=self.steps_per_epoch,
-            validation_split=self.validation_split,
+            validation_data=validation_data,
+            validation_split=self.validation_split,  # type: ignore
             verbose=self.verbose,  # type: ignore
         )
 
@@ -448,3 +502,57 @@ class ProxyFitModel:
     @property
     def original_model(self) -> tf.keras.Model | None:
         return self.__model
+
+
+class WeightedBinaryCrossentropy(tf.keras.losses.Loss):
+    '''
+    Рассчитывает взвешенную `tf.keras.losses.BinaryCrossentropy`.
+    Подробнее о параметрах конструктора см.
+    в документации `tf.keras.losses.BinaryCrossentropy`.
+
+    `class_weights`: None | np.ndarray
+    - В случае `None` возвращается результаты вычисления без взвешивания.
+    - В случае `np.ndarray`, структура должна быть следующая:
+    2D-массив c `.shape[0]` равной количеству целей multi-label классификации
+    и `.shape[1]` равной 2:
+    массив из двух элементов, где с индексом 0 находится вес для класса 0,
+    с индексом 1 - вес для класса 1.
+    '''
+    def __init__(
+        self,
+        class_weights: None | np.ndarray = None,
+        from_logits: bool = False,
+        label_smoothing: float = 0.0,
+        name: str | None = 'weighted_binary_crossentropy',
+        axis=-1,
+    ):
+        # Случай когда loss функция сводится к binary_crossentropy.
+        if class_weights is None or np.all(class_weights == 1.0):
+            self.class_weights = None
+            name = 'binary_crossentropy'
+        else:
+            self.class_weights = tf.convert_to_tensor(
+                class_weights,
+                dtype=tf.float32
+            )
+        self.default_bce = tf.keras.losses.BinaryCrossentropy(
+            from_logits=from_logits,
+            label_smoothing=label_smoothing,
+            axis=axis,
+        )
+        super(WeightedBinaryCrossentropy, self).__init__(name=name)
+
+    def __call__(self, y_true, y_pred, sample_weight=None):
+        loss = self.default_bce(y_true, y_pred, sample_weight)
+        if self.class_weights is not None:
+            y_true = tf.cast(y_true, tf.float32)
+            loss = K.mean(
+                (
+                    (self.class_weights[:, 0]**(1-y_true))  # type: ignore
+                    * (self.class_weights[:, 1]**(y_true))  # type: ignore
+                    * self.default_bce(y_true, y_pred)
+                ),
+                axis=-1
+            )
+
+        return loss
