@@ -112,15 +112,18 @@ def create_callbacks_info(
     return callbacks_info
 
 
-def get_scores_stats(results: dict[str, list]) -> dict[str, float]:
+def get_scores_stats(
+    results: dict[str, list],
+    ndigits: int = 2,
+) -> dict[str, float]:
     '''
     Возвращает словарь со средним значением и стандартным отклонением очков
     для всех метрик.
     '''
     stats = dict()
     for metric, score in results.items():
-        stats[f'mean_{metric}'] = np.mean(score).round(2)
-        stats[f'std_{metric}'] = np.std(score).round(2)
+        stats[f'mean_{metric}'] = np.mean(score).round(ndigits)
+        stats[f'std_{metric}'] = np.std(score).round(ndigits)
 
     return stats
 
@@ -133,7 +136,7 @@ def evaluate_model(
     n_repeats: int = 1,
     n_splits: int = 5,
     random_state: int = 42,
-) -> defaultdict[str, list[np.ndarray]]:
+) -> defaultdict[str, list[float | np.ndarray]]:
     '''
     Возвращает словарь с результатами вычисления метрик для каждого фолда
     при нескольких циклах K-fold кросс-валидации.
@@ -171,7 +174,7 @@ def evaluate_model(
         было 3 цикла и 5 разбиений при кросс-фалидации, то в списке будет
         3*5=15 результатов метрик.
     '''
-    results = defaultdict(list)
+    results = defaultdict(list[float | np.ndarray])
     cv = RepeatedKFold(
         n_splits=n_splits,
         n_repeats=n_repeats,
@@ -182,7 +185,10 @@ def evaluate_model(
         y_train, y_test = lbls[train_idx], lbls[test_idx]
 
         proxy_model.make_model(features.shape[1], lbls.shape[1])
-        proxy_model.fit(x_train, y_train)
+        if proxy_model.validation_split is None:
+            proxy_model.fit(x_train, y_train, (x_test, y_test))
+        else:
+            proxy_model.fit(x_train, y_train)
         y_pred = proxy_model.predict(x_test)
 
         for metric in metrics:
@@ -392,6 +398,13 @@ class ProxyFitModel:
         Функция или класс с методом `__call__` позволяющая создавать
         одинаковые скомпилированные DNN.
 
+    validation_split: float | None
+        Значения параметров отличаются от значений
+        исходного метода `fit` модели `tf.keras.Model`:
+        Если `None`, то метод `fit` требует аргумента `validation_data`,
+        если `float`, то будет использоваться разбиение тренировочных данных
+        с пропорцией `validation_split`.
+
     Остальные параметры в конструкторе повторяют часть параметров метода `fit`
     модели `tf.keras.Model`.
     '''
@@ -405,7 +418,7 @@ class ProxyFitModel:
         epochs: int = 10,
         shuffle: bool = True,
         steps_per_epoch: float | None = None,
-        validation_split: float = 0.0,
+        validation_split: float | None = 0.0,
         verbose: str | int = 'auto',
     ):
         self.batch_size = batch_size
@@ -422,7 +435,8 @@ class ProxyFitModel:
     def fit(
         self,
         x: np.ndarray,
-        y: np.ndarray
+        y: np.ndarray,
+        validation_data: tuple[np.ndarray, np.ndarray] | None = None,
     ) -> tf.keras.callbacks.History:
         '''
         Обучение модели.
@@ -430,6 +444,15 @@ class ProxyFitModel:
         assert self.__model is not None, (
             'Необходимо создать модель, вызовите метод `make_model`'
         )
+        if self.validation_split is not None and validation_data is not None:
+            raise ValueError(
+                'Недопустимо одновременно применение разбиения данных '
+                'через `validation_split` на тренировочные и валидационные '
+                'данные при наличии `validation_data`'
+                'Необходимо установить `validation_split=None` '
+                'или `validation_data=None`'
+            )
+
         return self.__model.fit(
             x=x,
             y=y,
@@ -439,7 +462,8 @@ class ProxyFitModel:
             epochs=self.epochs,
             shuffle=self.shuffle,
             steps_per_epoch=self.steps_per_epoch,
-            validation_split=self.validation_split,
+            validation_data=validation_data,
+            validation_split=self.validation_split,  # type: ignore
             verbose=self.verbose,  # type: ignore
         )
 
