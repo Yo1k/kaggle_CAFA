@@ -35,6 +35,19 @@ class Metric(Protocol):
         ...
 
 
+class MetricIA(Protocol):
+    '''
+    Класс для аннтоации типа.
+    '''
+    def __call__(
+        self,
+        y_true: np.ndarray,
+        y_pred: np.ndarray,
+        ia_arr: np.ndarray,
+    ) -> np.ndarray | float:
+        ...
+
+
 class ModelCreateCompile(Protocol):
     '''
     Класс для аннотации типа.
@@ -79,6 +92,25 @@ def calculating_class_weights(y_true: np.ndarray) -> np.ndarray:
     return weights
 
 
+def check_metric(
+    metric_func: Metric | MetricIA,
+    metric_type: Any,
+) -> bool:
+    '''
+    Проверка принадлежности `metric_func` к заданному классу метрик.
+    '''
+    # Параметры `metric_func`.
+    metric_var_set = set(
+                metric_func.__code__.co_varnames[  # type: ignore
+                    :metric_func.__code__.co_argcount  # type: ignore
+                ]
+            )
+    # Параметры указанного класса метрики.
+    metric_base_set = set(metric_type.__call__.__code__.co_varnames[1:])
+
+    return metric_var_set == metric_base_set
+
+
 def create_callbacks(
     params: list[CallbackParams]
 ) -> list[tf.keras.callbacks.Callback]:
@@ -112,27 +144,12 @@ def create_callbacks_info(
     return callbacks_info
 
 
-def get_scores_stats(
-    results: dict[str, list],
-    ndigits: int = 2,
-) -> dict[str, float]:
-    '''
-    Возвращает словарь со средним значением и стандартным отклонением очков
-    для всех метрик.
-    '''
-    stats = dict()
-    for metric, score in results.items():
-        stats[f'mean_{metric}'] = np.mean(score).round(ndigits)
-        stats[f'std_{metric}'] = np.std(score).round(ndigits)
-
-    return stats
-
-
 def evaluate_model(
     features: np.ndarray,
     lbls: np.ndarray,
     proxy_model: ProxyFitModel,
-    metrics: list[Metric],
+    metrics: list[Metric | MetricIA],
+    ia_arr: np.ndarray | None = None,
     n_repeats: int = 1,
     n_splits: int = 5,
     random_state: int = 42,
@@ -200,9 +217,27 @@ def evaluate_model(
         y_pred = proxy_model.predict(x_test)
 
         for metric in metrics:
-            results[metric.__name__].append(  # type: ignore
-                metric(y_test, y_pred)
-            )
+            # Обработка для `Metric`
+            if check_metric(metric, Metric):
+                results[metric.__name__].append(  # type: ignore
+                    metric(y_test, y_pred)   # type: ignore
+                )
+            # Обработка для `MetricIA`
+            elif check_metric(metric, MetricIA):
+                if ia_arr is None:
+                    raise ValueError(
+                        'Для использования метрик типа `MetricIA` '
+                        'необходимо задать параметр `ia_arr`, сейчас `None`.'
+                    )
+                results[metric.__name__].append(  # type: ignore
+                    metric(y_test, y_pred, ia_arr)  # type: ignore
+                )
+            else:
+                raise ValueError(
+                    f'metric {metric} не является '
+                    '`Metric` или `MetricIA`'
+                )
+
         # Очистка объектов.
         proxy_model.clear()
 
@@ -243,9 +278,6 @@ def f1_score_micro(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     '''
     # Классификация на 2 класса с прогом 0.5.
     y_pred = np.where(y_pred >= 0.5, 1, 0)
-    y_pred_set = set(np.unique(y_pred))
-    if y_pred_set > {0, 1}:
-        ValueError(f'{y_pred_set} возможные значения классов: 0, 1')
     return skmetrics.f1_score(y_true, y_pred, average='micro')  # type: ignore
 
 
@@ -266,6 +298,157 @@ def get_basseline_model(n_inputs: int, n_outputs: int) -> tf.keras.Model:
         metrics=['binary_accuracy'],
     )
     return model
+
+
+def get_scores_stats(
+    results: dict[str, list],
+    ndigits: int = 2,
+) -> dict[str, float]:
+    '''
+    Возвращает словарь со средним значением и стандартным отклонением очков
+    для всех метрик.
+    '''
+    stats = dict()
+    for metric, score in results.items():
+        stats[f'mean_{metric}'] = np.mean(score).round(ndigits)
+        stats[f'std_{metric}'] = np.std(score).round(ndigits)
+
+    return stats
+
+
+def ia_f1_score_micro(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    ia_arr: np.ndarray,
+) -> float:
+    '''
+    Возвращает результат f1_score micro, но с учетом коэффициентов ia.
+
+    Идея взята из suplementary (стр 31) статьи:
+    DOI: https://doi.org/10.1186/s13059-016-1037-6
+    '''
+    assert y_pred.ndim == 2 and y_true.ndim == 2 and ia_arr.ndim == 1, (
+        'Некорректная размерность одного из массивов:\n'
+        f'y_pred: {y_pred.ndim}, y_true: {y_true.ndim}, ia_arr: {ia_arr.ndim}'
+    )
+    assert y_pred.shape[1] == y_true.shape[1], (
+        f'Размер y_pred ({y_pred.shape[1]}) должен совпадать '
+        f'с размером y_true ({y_true.shape[1]})'
+    )
+    assert y_pred.shape[1] == ia_arr.shape[0], (
+        f'Размер y_pred ({y_pred.shape[1]}) должен совпадать '
+        f'с размером ia_arr ({ia_arr.shape[0]})'
+    )
+    # Порог выбран 0.5 как в стандартном случае построения confusion matrix.
+    pred = solidify_prediction(y_pred, tau=0.5)
+
+    # IA TP
+    tp_sum = (np.logical_and(pred, y_true) * ia_arr).sum()
+    # IA pred_sum: TP + FP
+    pred_sum = (pred * ia_arr).sum()
+    # IA true_sum: TP + FN
+    true_sum = (y_true * ia_arr).sum()
+
+    precision = tp_sum / pred_sum if pred_sum > 0 else 0
+    recall = tp_sum / true_sum if true_sum > 0 else 0
+
+    # Вычисление f1_score.
+    if precision > 0 and recall > 0:
+        f1_score = 2 * precision * recall / (precision + recall)
+    else:
+        f1_score = 0
+
+    return f1_score
+
+
+def ia_f1_score_weighted(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    ia_arr: np.ndarray,
+    tau: float,
+) -> float:
+    '''
+    Возвращает результат f1_score при взвешивании и учете ia-коэффициентов.
+
+    Формула адаптирована из suplementary (стр 31) статьи:
+    DOI: https://doi.org/10.1186/s13059-016-1037-6
+
+    [Здесь](https://github.com/BioComputingUP/CAFA-evaluator) можно посмотреть
+    адаптацию этой формулы.
+    '''
+    assert y_pred.ndim == 2 and y_true.ndim == 2 and ia_arr.ndim == 1, (
+        'Некорректная размерность одного из массивов:\n'
+        f'y_pred: {y_pred.ndim}, y_true: {y_true.ndim}, ia_arr: {ia_arr.ndim}'
+    )
+    assert y_pred.shape[1] == y_true.shape[1], (
+        f'Размер y_pred ({y_pred.shape[1]}) должен совпадать '
+        f'с размером y_true ({y_true.shape[1]})'
+    )
+    assert y_pred.shape[1] == ia_arr.shape[0], (
+        f'Размер y_pred ({y_pred.shape[1]}) должен совпадать '
+        f'с размером ia_arr ({ia_arr.shape[0]})'
+    )
+
+    pred = solidify_prediction(y_pred, tau)
+
+    # Покрытие, кол-во белков с хотя бы одним GO-термом,
+    # предсказанным с score >=tau.
+    covrg = (pred.sum(axis=1) > 0).sum()
+
+    # new version
+    # IA TP per protein
+    n_intersection = (np.logical_and(pred, y_true) * ia_arr).sum(axis=1)
+    # IA (TP + FP) per protein
+    n_pred = (pred * ia_arr).sum(axis=1)
+    # IA (TP + FN) per protein
+    n_gt = (y_true * ia_arr).sum(axis=1)
+
+    # Weighted precision, recall
+    precision = np.divide(
+        n_intersection, n_pred,
+        out=np.zeros_like(n_intersection, dtype='float'),
+        where=n_pred > 0
+    ).sum()
+    recall = np.divide(
+        n_intersection, n_gt,
+        out=np.zeros_like(n_intersection, dtype='float'),
+        where=n_gt > 0
+    ).sum()
+    wpr = precision / y_true.shape[0]
+    wrc = recall / covrg if covrg > 0 else 0
+
+    # Weighted f1_score
+    if wpr > 0 and wrc > 0:
+        wf = 2 * wpr * wrc / (wpr + wrc)
+    else:
+        wf = 0
+
+    return wf
+
+
+def ia_f1_score_weighted_max(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    ia_arr: np.ndarray,
+    tau_arr: np.ndarray,
+) -> float:
+    '''
+    Возвращает максимальный результат f1_score при взвешивании
+    и учете ia-коэффициентов среди параметров `tau` из `tau_arr`.
+
+    Идея адаптирована из
+    [ресурса](https://github.com/BioComputingUP/CAFA-evaluator).
+    '''
+    scores = np.zeros(len(tau_arr), dtype='float')
+    for i, tau in enumerate(tau_arr):
+        scores[i] = ia_f1_score_weighted(
+            y_true,
+            y_pred,
+            ia_arr,
+            tau,
+        )
+
+    return np.max(scores)
 
 
 def metric_closure(
@@ -297,6 +480,52 @@ def metric_closure(
     '''
     def closure(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray | float:
         return metric_func(y_true, y_pred, *args, **kwargs)
+    if metric_name:
+        closure.__name__ = metric_name
+    else:
+        closure.__name__ = metric_func.__name__
+    return closure
+
+
+def metric_ia_closure(
+        metric_func: Callable[
+            [
+                np.ndarray, np.ndarray, np.ndarray,
+                tuple[Any], dict[str, Any]
+            ],
+            np.ndarray | float],
+        metric_name: str | None = None,
+        *args: Any,
+        **kwargs: Any,
+) -> MetricIA:
+    '''
+    Вспомогательная функция для формирования метрик c IA.
+
+    Parameters:
+    ----------
+    metric_func: Callable[
+        [
+            np.ndarray, np.ndarray, np.ndarray,
+            tuple[Any], dict[str, Any]
+        ],
+        np.ndarray | float
+    ]
+        Функция или класс с методом `__call__` используемая
+        для рассчета метрики.
+
+    metric_name: str | None
+        Параметр для задания названия метрики, по умолчанию используется
+        название функции `metric_func`.
+
+    args: Any, kwargs: Any
+        Параметры, которые передаются в качестве аргументов в `metric_func`.
+    '''
+    def closure(
+        y_true: np.ndarray,
+        y_pred: np.ndarray,
+        ia_arr: np.ndarray,
+    ) -> np.ndarray | float:
+        return metric_func(y_true, y_pred, ia_arr, *args, **kwargs)
     if metric_name:
         closure.__name__ = metric_name
     else:
@@ -502,6 +731,13 @@ class ProxyFitModel:
     @property
     def original_model(self) -> tf.keras.Model | None:
         return self.__model
+
+
+def solidify_prediction(
+    y_pred: np.ndarray,
+    tau: float,
+) -> np.ndarray:
+    return y_pred >= tau
 
 
 class WeightedBinaryCrossentropy(tf.keras.losses.Loss):
